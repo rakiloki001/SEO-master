@@ -12,6 +12,7 @@ const App: React.FC = () => {
     keyword: '',
     language: 'English',
     wordCount: 1000,
+    articleStyle: 'Comprehensive Guide',
     customContext: ''
   });
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);

@@ -16,6 +16,7 @@ export interface FormData {
   keyword: string;
   language: string;
   wordCount: number;
+  articleStyle: string;
   customContext: string;
 }
 

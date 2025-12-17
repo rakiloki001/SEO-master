@@ -15,10 +15,12 @@ export const analyzeKeyword = async (formData: FormData): Promise<AnalysisData> 
   const prompt = `
     Perform a comprehensive SEO analysis for the keyword: "${formData.keyword}" in language: "${formData.language}".
     
+    Article Style/Tone Preference: "${formData.articleStyle}". Ensure the outline reflects this style (e.g., if 'First Person', the outline should include 'My Experience' sections; if 'Comprehensive', it should be exhaustive).
+    
     1. Estimate the Keyword Difficulty (Low, Medium, or High) based on the likely competition found in search results. Explain why in one sentence.
     2. List 8-10 semantically related keywords or long-tail variations that should be included in the content.
     3. Identify 3-5 key topics or angles that top-ranking pages are covering.
-    4. Create a detailed article outline (H1, H2, H3 structure) that follows E-E-A-T principles.
+    4. Create a detailed article outline (H1, H2, H3 structure) that follows E-E-A-T principles and matches the requested "${formData.articleStyle}" style.
     
     IMPORTANT: Return the result as a valid JSON object. Do not include any introductory text or explanations outside the JSON.
     
@@ -42,17 +44,25 @@ export const analyzeKeyword = async (formData: FormData): Promise<AnalysisData> 
       }
     });
 
-    let jsonText = response.text;
+    let jsonText = response.text || "";
     if (!jsonText) throw new Error("No data returned from analysis.");
     
-    // Clean up potential markdown code blocks (e.g. ```json ... ```)
-    jsonText = jsonText.replace(/```json\n?|```/g, '').trim();
+    // Improved JSON extraction: find the first '{' and the last '}'
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+    } else {
+      // Fallback cleanup if braces aren't clear, though this implies bad format
+      jsonText = jsonText.replace(/```json\n?|```/g, '').trim();
+    }
     
     let parsedData;
     try {
       parsedData = JSON.parse(jsonText);
     } catch (e) {
-      console.error("JSON Parse Error", e);
+      console.error("JSON Parse Error", e, "Raw Text:", response.text);
       throw new Error("Failed to parse analysis results. The model did not return valid JSON.");
     }
 
@@ -96,6 +106,7 @@ export const generateArticle = async (formData: FormData, analysisData: Analysis
     **Target Keyword:** ${formData.keyword}
     **Language:** ${formData.language}
     **Target Word Count:** Approx. ${formData.wordCount} words
+    **Article Style/Tone:** ${formData.articleStyle} (Strictly adhere to this tone).
     
     **Analysis Data:**
     - Difficulty: ${analysisData.difficulty} (${analysisData.difficultyReason})
@@ -114,7 +125,7 @@ export const generateArticle = async (formData: FormData, analysisData: Analysis
     **Instructions:**
     1. Write the full article in Markdown format.
     2. Strictly adhere to Google's E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness) guidelines.
-    3. Use natural, engaging language appropriate for the target audience.
+    3. Adopt the requested style: "${formData.articleStyle}".
     4. Properly format headings (H1, H2, H3), lists, and emphasis.
     5. Integrate the "Keywords to Include" naturally.
     6. Ensure the content is original and provides value beyond what is currently ranking.
@@ -148,6 +159,7 @@ export const generateArticleImages = async (keyword: string, outline: string): P
 
   try {
     // Step 1: Generate prompts
+    // We can use JSON mode here because we are NOT using Search tools for this specific call.
     const promptGenResponse = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `
@@ -162,10 +174,18 @@ export const generateArticleImages = async (keyword: string, outline: string): P
       }
     });
     
-    const prompts: string[] = JSON.parse(promptGenResponse.text || '[]');
-    if (prompts.length === 0) {
-      prompts.push(`A professional photo representing ${keyword}`);
-      prompts.push(`An illustration showing the concept of ${keyword}`);
+    let prompts: string[] = [];
+    try {
+       prompts = JSON.parse(promptGenResponse.text || '[]');
+    } catch (e) {
+       console.warn("Failed to parse prompt JSON, using defaults", e);
+    }
+    
+    if (!prompts || prompts.length === 0) {
+      prompts = [
+        `A professional photo representing ${keyword}`,
+        `An illustration showing the concept of ${keyword}`
+      ];
     }
 
     // Step 2: Generate Images concurrently

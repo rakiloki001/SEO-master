@@ -13,7 +13,8 @@ interface AnalysisViewProps {
 const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, onOutlineChange, isGenerating }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [outlineBuffer, setOutlineBuffer] = useState(data.suggestedOutline);
-  const [copied, setCopied] = useState(false);
+  const [copiedOutline, setCopiedOutline] = useState(false);
+  const [copiedKeywords, setCopiedKeywords] = useState(false);
 
   const handleSaveOutline = () => {
     onOutlineChange(outlineBuffer);
@@ -22,8 +23,15 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, onOutline
 
   const handleCopyOutline = () => {
     navigator.clipboard.writeText(data.suggestedOutline);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedOutline(true);
+    setTimeout(() => setCopiedOutline(false), 2000);
+  };
+
+  const handleCopyKeywords = () => {
+    const text = data.relatedKeywords.join(', ');
+    navigator.clipboard.writeText(text);
+    setCopiedKeywords(true);
+    setTimeout(() => setCopiedKeywords(false), 2000);
   };
 
   return (
@@ -49,9 +57,19 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, onOutline
 
         {/* Keywords */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm md:col-span-2">
-          <div className="flex items-center gap-2 text-slate-500 mb-3">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Keywords Strategy</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-slate-500">
+              <CheckCircle className="w-4 h-4" />
+              <span className="text-sm font-medium">Keywords Strategy</span>
+            </div>
+            <button
+              onClick={handleCopyKeywords}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors"
+              title="Copy All Keywords"
+            >
+              {copiedKeywords ? <CheckCircle className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+              {copiedKeywords ? 'Copied' : 'Copy'}
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {data.relatedKeywords.map((kw, idx) => (
@@ -123,7 +141,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, onOutline
                   className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                   title="Copy Outline"
                 >
-                  {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  {copiedOutline ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                 </button>
                 <button 
                   onClick={() => setIsEditing(!isEditing)}

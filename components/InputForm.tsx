@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormData } from '../types';
-import { Search, Globe, AlignLeft, LinkIcon } from './Icons';
+import { Search, Globe, AlignLeft, LinkIcon, PenTool } from './Icons';
 
 interface InputFormProps {
   formData: FormData;
@@ -78,6 +78,26 @@ const InputForm: React.FC<InputFormProps> = ({ formData, setFormData, onSubmit, 
               <option value={1000}>Standard (~1000 words)</option>
               <option value={1500}>Long-form (~1500 words)</option>
               <option value={2000}>Comprehensive (~2000+ words)</option>
+            </select>
+          </div>
+
+          {/* Article Style */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+              <PenTool className="w-4 h-4 text-slate-400" /> Article Tone/Style (Optional)
+            </label>
+            <select
+              name="articleStyle"
+              value={formData.articleStyle}
+              onChange={handleChange}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="Comprehensive Guide">Comprehensive Guide (Objective & Detailed)</option>
+              <option value="First Person (Personal Experience)">First Person (My Experience/Story)</option>
+              <option value="Professional & Authoritative">Professional & Authoritative</option>
+              <option value="Casual & Conversational">Casual & Conversational</option>
+              <option value="Listicle / Step-by-Step">Listicle / Step-by-Step</option>
+              <option value="Opinion / Editorial">Opinion / Editorial</option>
             </select>
           </div>
         </div>
