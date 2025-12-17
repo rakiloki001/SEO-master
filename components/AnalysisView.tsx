@@ -1,15 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AnalysisData } from '../types';
-import { BarChart2, CheckCircle, LinkIcon, FileText, ArrowRight } from './Icons';
+import { BarChart2, CheckCircle, LinkIcon, FileText, ArrowRight, Copy, PenTool, CheckCircle as SaveIcon } from './Icons';
 import ReactMarkdown from 'react-markdown';
 
 interface AnalysisViewProps {
   data: AnalysisData;
   onGenerate: () => void;
+  onOutlineChange: (newOutline: string) => void;
   isGenerating: boolean;
 }
 
-const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, isGenerating }) => {
+const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, onOutlineChange, isGenerating }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [outlineBuffer, setOutlineBuffer] = useState(data.suggestedOutline);
+  const [copied, setCopied] = useState(false);
+
+  const handleSaveOutline = () => {
+    onOutlineChange(outlineBuffer);
+    setIsEditing(false);
+  };
+
+  const handleCopyOutline = () => {
+    navigator.clipboard.writeText(data.suggestedOutline);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       
@@ -101,16 +117,54 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, isGenerat
                 <FileText className="w-5 h-5 text-indigo-600" />
                 <h3 className="font-semibold text-slate-800">Proposed Content Outline</h3>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyOutline}
+                  className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title="Copy Outline"
+                >
+                  {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <button 
+                  onClick={() => setIsEditing(!isEditing)}
+                  className={`text-xs font-medium px-2 py-1 rounded border transition-colors flex items-center gap-1
+                    ${isEditing 
+                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  {isEditing ? 'Cancel' : 'Edit Outline'}
+                </button>
+                {isEditing && (
+                  <button 
+                    onClick={handleSaveOutline}
+                    className="text-xs font-medium px-2 py-1 rounded bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 flex items-center gap-1"
+                  >
+                    <SaveIcon className="w-3 h-3" /> Save
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="p-6 prose prose-sm max-w-none prose-headings:text-slate-800 prose-p:text-slate-600 prose-li:text-slate-600 flex-grow">
-               <ReactMarkdown>{data.suggestedOutline}</ReactMarkdown>
+            
+            <div className="p-6 flex-grow">
+              {isEditing ? (
+                <textarea
+                  value={outlineBuffer}
+                  onChange={(e) => setOutlineBuffer(e.target.value)}
+                  className="w-full h-96 p-4 text-sm font-mono text-slate-700 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                />
+              ) : (
+                 <div className="prose prose-sm max-w-none prose-headings:text-slate-800 prose-p:text-slate-600 prose-li:text-slate-600">
+                    <ReactMarkdown>{data.suggestedOutline}</ReactMarkdown>
+                 </div>
+              )}
             </div>
+
             <div className="p-5 border-t border-slate-100 bg-slate-50/30">
               <button
                 onClick={onGenerate}
-                disabled={isGenerating}
+                disabled={isGenerating || isEditing}
                 className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
-                  ${isGenerating 
+                  ${isGenerating || isEditing
                     ? 'bg-slate-400 cursor-not-allowed' 
                     : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.01]'}`}
               >
@@ -120,6 +174,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ data, onGenerate, isGenerat
                   <>Generate Full Article <ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
+              {isEditing && <p className="text-center text-xs text-amber-600 mt-2">Please save your outline changes before generating.</p>}
             </div>
           </div>
         </div>

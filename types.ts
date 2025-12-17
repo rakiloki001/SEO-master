@@ -28,6 +28,11 @@ export enum AppState {
   ERROR = 'ERROR'
 }
 
+export interface GeneratedImage {
+  url: string;
+  prompt: string;
+}
+
 export interface GenerationConfig {
   formData: FormData;
   analysisData: AnalysisData;

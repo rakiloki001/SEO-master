@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { AnalysisData, FormData, GroundingSource } from "../types";
+import { AnalysisData, FormData, GroundingSource, GeneratedImage } from "../types";
 
 // Initialize Gemini Client
 // Using process.env.API_KEY as strictly required
@@ -33,8 +33,6 @@ export const analyzeKeyword = async (formData: FormData): Promise<AnalysisData> 
   `;
 
   try {
-    // Note: responseMimeType: 'application/json' is NOT supported when using tools like googleSearch.
-    // We must parse the text manually.
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -137,5 +135,75 @@ export const generateArticle = async (formData: FormData, analysisData: Analysis
   } catch (error) {
     console.error("Generation Failed", error);
     throw new Error("Failed to generate article. Please try again.");
+  }
+};
+
+/**
+ * Generates 2 relevant images for the article context.
+ * 1. Analyzes the context to create prompts.
+ * 2. Generates images using gemini-2.5-flash-image.
+ */
+export const generateArticleImages = async (keyword: string, outline: string): Promise<GeneratedImage[]> => {
+  const client = getClient();
+
+  try {
+    // Step 1: Generate prompts
+    const promptGenResponse = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `
+        Based on the keyword "${keyword}" and the outline below, suggest 2 distinct, highly descriptive prompts for generating professional, photorealistic or high-quality illustration images to accompany this article.
+        
+        Outline: ${outline.substring(0, 500)}...
+        
+        Return ONLY a JSON array of strings, e.g., ["prompt 1", "prompt 2"].
+      `,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+    
+    const prompts: string[] = JSON.parse(promptGenResponse.text || '[]');
+    if (prompts.length === 0) {
+      prompts.push(`A professional photo representing ${keyword}`);
+      prompts.push(`An illustration showing the concept of ${keyword}`);
+    }
+
+    // Step 2: Generate Images concurrently
+    const imagePromises = prompts.slice(0, 2).map(async (imgPrompt) => {
+      try {
+        const response = await client.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: {
+            parts: [{ text: imgPrompt }]
+          },
+          config: {
+            imageConfig: {
+              aspectRatio: '16:9',
+            }
+          }
+        });
+
+        // Extract image
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+          if (part.inlineData) {
+            return {
+              url: `data:image/png;base64,${part.inlineData.data}`,
+              prompt: imgPrompt
+            };
+          }
+        }
+        return null;
+      } catch (e) {
+        console.error("Single image gen failed", e);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(imagePromises);
+    return results.filter((img): img is GeneratedImage => img !== null);
+
+  } catch (error) {
+    console.error("Image Strategy Failed", error);
+    throw new Error("Failed to generate images.");
   }
 };

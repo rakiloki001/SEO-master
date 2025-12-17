@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import InputForm from './components/InputForm';
 import AnalysisView from './components/AnalysisView';
 import ArticleView from './components/ArticleView';
-import { AppState, FormData, AnalysisData } from './types';
-import { analyzeKeyword, generateArticle } from './services/geminiService';
+import { AppState, FormData, AnalysisData, GeneratedImage } from './types';
+import { analyzeKeyword, generateArticle, generateArticleImages } from './services/geminiService';
 import { Loader2 } from './components/Icons';
 
 const App: React.FC = () => {
@@ -16,6 +16,8 @@ const App: React.FC = () => {
   });
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [articleContent, setArticleContent] = useState<string>('');
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleAnalysisSubmit = async () => {
@@ -28,6 +30,15 @@ const App: React.FC = () => {
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred during analysis.");
       setAppState(AppState.IDLE);
+    }
+  };
+
+  const handleOutlineChange = (newOutline: string) => {
+    if (analysisData) {
+      setAnalysisData({
+        ...analysisData,
+        suggestedOutline: newOutline
+      });
     }
   };
 
@@ -44,10 +55,28 @@ const App: React.FC = () => {
     }
   };
 
+  const handleGenerateImages = async () => {
+    if (!analysisData || !articleContent) return;
+    setIsGeneratingImages(true);
+    try {
+      // Use the outline or article summary (here we use outline/keyword for speed)
+      // to generate images
+      const images = await generateArticleImages(formData.keyword, analysisData.suggestedOutline);
+      setGeneratedImages(images);
+    } catch (err: any) {
+      console.error(err);
+      // Don't block the UI, just show a minor error or log it
+      // setErrorMsg("Failed to generate images."); 
+    } finally {
+      setIsGeneratingImages(false);
+    }
+  };
+
   const handleReset = () => {
     setAppState(AppState.IDLE);
     setAnalysisData(null);
     setArticleContent('');
+    setGeneratedImages([]);
     setErrorMsg(null);
     setFormData(prev => ({ ...prev, keyword: '', customContext: '' }));
   };
@@ -115,6 +144,7 @@ const App: React.FC = () => {
             <AnalysisView 
               data={analysisData} 
               onGenerate={handleGenerateArticle}
+              onOutlineChange={handleOutlineChange}
               isGenerating={appState === AppState.GENERATING}
             />
           </div>
@@ -122,7 +152,13 @@ const App: React.FC = () => {
 
         {/* State: COMPLETE (Show Final Article) */}
         {appState === AppState.COMPLETE && (
-          <ArticleView content={articleContent} onReset={handleReset} />
+          <ArticleView 
+            content={articleContent} 
+            images={generatedImages}
+            onReset={handleReset} 
+            onGenerateImages={handleGenerateImages}
+            isGeneratingImages={isGeneratingImages}
+          />
         )}
 
       </main>
